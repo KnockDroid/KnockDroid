@@ -1,80 +1,59 @@
 class KnockDroid{
-	constructor( cfg ){
+	constructor( host, home ){
 		let self = this;
-		//Properties
-		self._routes = {};
-		self._activeRoute = {};
-		self._config = {};
-		self._vm = {};
-		
-		self._config = {
-		    title : cfg.title ? cfg.title : "KnockDroid",
-		    prefix : cfg.prefix ? cfg.prefix : ""
-	    };
-		cfg.routes.forEach(r=>{
-			self._routes[r.hash] = {
-				hash : r.hash,
-				file : r.file
-			};
-		})
+        self.host = host ? host : "";
+        self.home = home ? home : "home";
+        self.counter = 0;
+        self.root = {
+            view : {},
+            model : {},
+            layout : {},
+            kids : {}
+        }
+        self.data = {}
+
+        //Load Home Module
+		require( [self.host + self.home], vm=>{
+            self.root = vm;
+            self.renderRoot( self.root );
+        } );
 	}
-	
-	start( hash ){
+
+    renderRoot( vm ){
         let self = this;
-        if( !self._routes[hash] ){
-            return app.ShowPopup( "404: page not found" );
+        self.root.view = vm.View;
+        self.root.model = vm.Model;
+        self.root.layout = self.getUi( "Layout", vm["Layout"].init );
+        self.root.kids = {}
+        app.AddLayout( self.root.layout );
+        self.renderKids( vm.View["Layout"].kids, vm.Model, self.root.layout, self.root.kids );
+    }
+
+    renderKids( kids, model, parent, kidsContainer ){
+        let self = this;
+        let tmp;
+        let idCount;
+        let id;
+        for( let k in kids ){
+            tmp = kids[k];
+            idCount = ++self.counter;
+            id = "kid_id_" + idCount;
+            kidsContainer[id] = self.getUI( k, kids[k], model );
+            parent.AddChild( kidsContainer[id] );
+            if( tmp.kids )
+                self.renderKids( tmp.kids, model, kidsContainer[id], kidsContainer );
         }
-        self._activeRoute = self._routes[hash]
-        require( [self._config.prefix + self._activeRoute.hash + ".js"], function( vm ){
-            self._vm = vm;
-            self.render();
-        });
-	}
-	
-	render( key, child, parent ){
-	    let self = this;
-	    key = key ? key : "Layout";
-        child = child ? child : self._vm.View[key];
-        parent = parent ? parent : false;
-        let ui = self.getUi( key, child );
-        if( child.val ){
-            if( child.val.obs ){
-                let obs = self._vm.Model[child.val.obs]
-                ui[child.val.set]( obs() );
-                obs.subscribe( (newVal)=>{
-                    ui[child.val.set]( newVal );
-                } );
-                if( child.val.get )
-                    ui[child.val.ev]( function( changedVal ){
-                        obs(ui[child.val.get]());
-                    } );
-            }
-            if( child.val.raw ){
-                ui[child.val.set]( child.val.raw );
-            }
-        }
-        if( child.ev ){
-            for( let e in child.ev ){
-                ui[e]( self._vm.Model[child.ev[e]] );
-            }
-        }
-        if(parent) parent.AddChild( ui );
-        else app.AddLayout( ui );
-        if( child.kids )
-            for( let kid in child.kids ){
-                self.render( kid, child.kids[kid], ui );
-            }
     }
     
-    getUi( uiKey, child ){
+    getUi( uiKey, uiData, model ){
         let ui = null;
-        ui = MUI["Create" + uiKey]( ...child.init );
-        if( child.methods ){
-            for( let m in child.methods ){
-                if( typeof child.methods[m] =="object" )
-                    ui[m]( ...child.methods[m] );
+        ui = MUI["Create" + uiKey]( ...uiData.init );
+        if( uiData.methods ){
+            for( let m in uiData.methods ){
+                if( typeof uiData.methods[m] =="object" )
+                    ui[m]( ...uiData.methods[m] );
                 else
-                    ui[m]( child.methods[m] );
+                    ui[m]( uiData.methods[m] );
             }
         }
         return ui;

@@ -8,15 +8,18 @@ define( [], function(){
     }
     var View = {
         "Layout" : {
+            id : "root",
             init : [ "Linear", "FillXY,Vertical" ],
             methods : {
                 "SetBackColor" : "#efefef"
             },
             kids : {
                 "AppBar":{
+                    id : "appbar",
                     init : ["APP NAME", "apps", "info"],
                 },
                 "TextSecondary" : {
+                    id : "counterText",
                     init : ["--", 1, -1, "Monospace" ],
                     val : {
                         obs : "counter",
@@ -24,6 +27,7 @@ define( [], function(){
                     }
                 },
                 "ButtonFlat" : {
+                    id : "counterButton",
                     init : [ "Click Here", 0.3, 0.1, "" ],
                     ev : {
                         "SetOnTouch" : "add"
@@ -34,15 +38,6 @@ define( [], function(){
     };
     
     return {
-        routes : [
-            {
-                hash : "",
-                vm : "index"
-            },
-            {
-                hash : "about"
-            }
-        ],
         View : View,
         Model : new Model()
     }
