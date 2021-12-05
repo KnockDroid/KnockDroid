@@ -1,5 +1,5 @@
 class KnockDroid{
-	constructor( home, host ){
+	constructor(){
 		let self = this;
 
         /**
@@ -19,8 +19,8 @@ class KnockDroid{
              * Counter for generating unique IDs for every UI element
              * that is created.
              */
-            host : host ? host : "",
-            defaultRoute : home ? home : "home",
+            host : "",
+            routes : [],
             idCounter : 0
 
         }
@@ -30,10 +30,12 @@ class KnockDroid{
          * will contain all routes and their sub routes
          */
         self.routes = {
-            all : {
+            default : "",
+            kids : {
                 /**
                  * Format
                     Path : {
+                        file : ".js file absolute path",
                         id : "custom_or_auto",
                         kids : {
                             Path : {
@@ -95,46 +97,74 @@ class KnockDroid{
              */
         }
 
-        self.host = host ? host : "";
-        self.home = home ? home : "home";
-        self.counter = 0;
-        self.root = {
-            vm : {},
-            view : {},
-            model : {},
-            layout : {},
-            kids : {},
-            //Route properties
-            routes : {},
-            allRoutes : {},
-            defaultRoute : "",
-            currentRoute : {
-                path : "",
-                lay : false,
-                kids : {},
-                view : {},
-                model : {}
-            },
-            routerView : false
+        self.global = {
+            regex : {
+                /**
+                 * Regex to find observable keys inside a text binding
+                 * It's not efficient and I wont recommend to use text 
+                 * bindings, instead use computed bindings.
+                 */
+                obs : /<(.*?)>/g
+            }
         }
-        self.regex = {
-            //obs : /<([^}]+)>/g,
-            obs : /<(.*?)>/g,
-            exp : /\{([^}]+)\}/g
-        }
-        self.data = {}
-
-        //Load Home Module
-		require( [self.host + self.home + ".js"], vm=>{
-            self.root.vm = vm;
-            self.renderRoot( self.root.vm );
-        } );
 	}
 
-    init = function(){
+    configure( routes, host ){
+        let self = this;
+        self.config.host = host ? host : "";
+        self.config.routes = routes ? routes : [];
+        return new Promise(
+            (Resolve, Reject)=>{
+                switch( typeof routes ){
+                    case "string":
+                        /**
+                         * Get router config from remote host
+                         */
+                        require( 
+                            [self.config.host + self.config.routes + ".js"],
+                            /** ra ~ routesArray */
+                            (ra)=>{
+                                /**
+                                 * Empty the routes object
+                                 * insert new routes object
+                                 */
+                                self.routes.kids = {};
+                                self.parseRoutes( ra, self.routes );
+                                Resolve();
+                            }
+                        );
+                    break;
+                }
+            }
+        );
+    }
+
+    parseRoutes( ra, parent ){
+        let self = this
+        ra.forEach(
+            (r)=>{
+                parent.kids[r.path] = {
+                    file : self.config.host + (r.file ? r.file : r.path) + ".js",
+                    kids : {}
+                };
+                if( r.default )
+                    parent.default = r.path;
+            }
+        );
+    }
+
+    start(){
+        let self = this;
         window.onhashchange = function(){
             self.parse();
         }
+        self.navigate( self.routes.default );
+    }
+
+    navigate( path ){
+        let self = this;
+        path = path ? path : self.routes.default;
+        window.location = "#/" + path
     }
 
     parse(){
@@ -142,72 +172,106 @@ class KnockDroid{
         let hash = window.location.hash.replace("#/", "");
         let i = 0;
         let hashArray = hash.split("/");
-        this.load( hashArray, 0, self.routes.all, self.data );
+        self.load( hashArray, 0, self.routes.kids, self.data );
     }
 
-    load( hash, pos, routes, data, parent ){
+    load( hashArray, pos, routes, data, parent ){
         let self = this,
-            h = hash[pos];
-        if( tree[pos]==h ){
-            id = routes[h].id;
-            routes = routes[h].kids;
+            hash = hashArray[pos],
+            tree = self.routes.tree;
+        if( tree[pos]==hash ){
+            id = routes[hash].id;
+            routes = routes[hash].kids;
             data = data[id].kids;
             parent = data[id].view;
-            self.load( hash, pos+1, routes, data, parent );
+            self.load( hashArray, pos+1, routes, data, parent );
         }else{
-            if( !routes[h] ){
-                app.error(404);
-                break;
+            if( !routes[hash] ){
+                self.error(404, "Route '" + hash + "' not found");
             }else{
-                if( !routes[h].id ){
-                    
+                if( tree[pos] ){
+                    let activeID = routes[tree[pos]].id;
+                    data[activeID].view.Animate( "FadeOut" );
                 }
-                data[tree[post]].view.Animate( "FadeOut" );
-                data[id].view.Animate( "FadeIn" );
-                self.routes.tree.splice( post );
-                self.routes.tree.push( h );
+                if( !routes[hash].id ){
+                    require( 
+                        [ routes[hash].file ],
+                        vm=>{
+                            routes[hash].id = vm.id ? vm.id : self.getID();
+                            if( vm.routes) self.parseRoutes( vm.routes, routes[hash] );
+                            data[routes[hash].id] = {
+                                ui : {},
+                                view : {},
+                                model : {},
+                                kidsView : {},
+                                default : "",
+                                kids : {}
+                            }
+                            self.render( data[routes[hash].id], vm, parent );
+                            self.routes.tree.splice( pos );
+                            self.routes.tree.push( hash );
+                        }
+                    );
+                }else{
+                    let currentID = routes[hash].id;
+                    data[currentID].view.Animate( "FadeIn" );
+                    self.routes.tree.splice( pos );
+                    self.routes.tree.push( hash );
+                }
+                //data[tree[pos]].view.Animate( "FadeOut" );
+                //data[id].view.Animate( "FadeIn" );
+                //self.routes.tree.splice( pos );
+                //self.routes.tree.push( hash );
             }
         }
     }
 
-    renderRoot( vm ){
+    render( data, vm, parent ){
         let self = this;
-        self.root.view = vm.View;
-        self.root.model = vm.Model;
-        self.root.layout = self.getUi( "Layout", vm.View.Layout, vm.Model );
-        self.root.kids = {}
-        app.AddLayout( self.root.layout );
-        self.renderKids( vm.View["Layout"].kids, vm.Model, self.root.layout, self.root.kids );
-        self.root.routes = self.root.vm.Routes ? self.root.vm.Routes : [];
-        self.routerInit();
+        data.model = vm.Model;
+        let layout = vm.View.Layout;
+        data.view = app.CreateLayout( ...layout.init );
+        data.view.SetVisibility( "Hide" );
+        if( parent )
+            parent.AddChild( data.view );
+        else{
+            app.AddLayout( data.view );
+        }
+        self.renderKids( vm.View, data.model, data.view, data.kids, data );
+        data.view.Animate( "FadeIn" );
     }
-
-    renderKids( kids, model, parent, kidsContainer ){
+    
+    renderKids( kids, model, parent, kidsContainer, parentObject ){
         let self = this;
         let tmp;
         let id;
         for( let k in kids ){
-            if( k=="RouterView" ){
-                if( !self.root.routerView ){
-                    self.root.routerView = self.getUi( "Layout", kids[k], {} );
-                    parent.AddChild( self.root.routerView );
-                }
+            if( k=="kidsView" ){
+                parentObject.kidsView = self.getUi( "Layout", kids[k], {} );
+                parent.AddChild( parentObject.kidsView );
             }else{
                 tmp = kids[k];
-                self.counter = self.counter+1;
-                id = "kid_id_" + self.counter;
+                id = self.getID();
                 kidsContainer[id] = self.getUi( k, kids[k], model );
                 parent.AddChild( kidsContainer[id] );
                 if( tmp.kids )
-                    self.renderKids( tmp.kids, model, kidsContainer[id], kidsContainer );
+                    self.renderKids( tmp.kids, model, kidsContainer[id], kidsContainer, parentObject );
             }
         }
+    }
+
+    error( code, msg ){
+        app.ShowPopup( code + " Error : " + msg );
+    }
+
+    getID(){
+        let self = this;
+        return "auto_generated_" + (self.config.idCounter++);
     }
     
     getUi( uiKey, uiData, model ){
         let self = this;
-        let ui = null;
-        ui = MUI["Create" + uiKey]( ...uiData.init );
+        var ui = MUI["Create" + uiKey]( ...uiData.init );
         if( uiData.methods ){
             for( let m in uiData.methods ){
                 if( typeof uiData.methods[m] =="object" )
@@ -255,14 +319,18 @@ class KnockDroid{
                     break;
                     case "event":
                         for( let e in uiData.bind.event ){
-                            ui[e]( model[uiData.bind.event[e]] );
+                            if( typeof uiData.bind.event[e]=="string" )
+                                ui[e]( model[uiData.bind.event[e]] );
+                            else if( typeof uiData.bind.event[e]=="function" )
+                                ui[e]( uiData.bind.event[e] );
                         }
                     break;
                     case "href":
                         let ev = uiData.bind.href.ev;
                         let path = uiData.bind.href.path;
+                        ui.path = path
                         ui[ev]( function(){
-                            kd.navigate( path );
+                            kd.navigate( this.path );
                         } );
                     break;
                 }
@@ -293,59 +361,6 @@ class KnockDroid{
                     get : "GetText"
                 }
             break;
-        }
-    }
-
-    routerInit(){
-        let self = this;
-        let routes = self.root.routes;
-        self.root.allRoutes = {};
-        routes.forEach( r=>{
-            self.root.allRoutes[r.path] = r;
-            if( r.default ){
-                self.root.defaultRoute = r.path;
-            }
-        } )
-        window.onhashchange = function(){
-            if( self.root.routerView )
-                self.root.routerView.Animate( "FadeOut" );
-            self.onNavigate();
-        }
-        if( self.root.defaultRoute )
-            self.navigate( self.root.defaultRoute );
-    }
-
-    navigate( path ){
-        path = path ? path : self.root.defaultRoute;
-        let self = this;
-        window.location = "#/" + path
-    }
-
-    onNavigate(){
-        let self = this;
-        let path = window.location.hash.split( "#/" ).join("");
-        if( self.root.currentRoute.path!=path ){
-            let file = self.root.allRoutes[path].file ? self.root.allRoutes[path].file : self.root.allRoutes[path].path;
-            if( file ){
-                //Load Home Module
-                require( [self.host + file + ".js"], vm=>{
-                    self.root.currentRoute.path = path;
-                    self.root.currentRoute.view = vm.View;
-                    self.root.currentRoute.model = vm.Model;
-                    if( self.root.currentRoute.lay && self.root.routerView )
-                        self.root.routerView.DestroyChild( self.root.currentRoute.lay );
-                    self.root.currentRoute.lay = self.getUi( "Layout", vm.View.Layout, vm.Model );
-                    self.root.currentRoute.kids = {}
-                    if( self.root.routerView )
-                        self.root.routerView.AddChild( self.root.currentRoute.lay );
-                    if( vm.View["Layout"].kids ){
-                        self.renderKids( vm.View["Layout"].kids, vm.Model, self.root.currentRoute.lay, self.root.currentRoute.kids );
-                    }
-                    self.root.routerView.Animate( "FadeIn" );
-                } );
-            }else{
-                app.ShowPopup( "Page not found" );
-            }
         }
     }
 }

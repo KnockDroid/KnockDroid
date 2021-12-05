@@ -1,16 +1,4 @@
 define( function(){
-    var Model = function(){
-        let self = this;
-        self.age = ko.observable( 24 );
-        self.name = ko.observable( "Danish Nayeem" );
-        self.message = ko.pureComputed( function(){
-            return self.name() + " is " + self.age() + " years old."
-        } );
-        self.add = function(){
-            self.age( self.age()+1 );
-        }
-    }
-
     return {
         View : {
             "Layout" : {
@@ -68,7 +56,9 @@ define( function(){
                 }
             }
         },
-        Model : new Model()
+        Model : {
+            name : ko.observable("Danish Nayeem")
+        }
     }
 
 

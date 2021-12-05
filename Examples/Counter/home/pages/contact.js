@@ -11,9 +11,8 @@ define( function(){
                     "AppBar" : {
                         init : ["Contact Us", "arrow_back"],
                         bind : {
-                            href : {
-                                ev : "SetOnMenuTouch",
-                                path : "about"
+                            event : {
+                                SetOnMenuTouch : function(){ kd.navigate("home") }
                             }
                         }
                     },
@@ -28,7 +27,7 @@ define( function(){
                         bind : {
                             href : {
                                 ev : "SetOnTouch",
-                                path : "about"
+                                path : "home"
                             }
                         }
                     }
