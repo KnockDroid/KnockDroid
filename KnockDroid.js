@@ -247,12 +247,12 @@ class KnockDroid{
         let id;
         for( let k in kids ){
             if( k=="kidsView" ){
-                parentObject.kidsView = self.getUi( "Layout", kids[k], {} );
+                parentObject.kidsView = new UI( "Layout", kids[k], {} );
                 parent.AddChild( parentObject.kidsView );
             }else{
                 tmp = kids[k];
                 id = self.getID();
-                kidsContainer[id] = self.getUi( k, kids[k], model );
+                kidsContainer[id] = new UI( k, kids[k], model );
                 parent.AddChild( kidsContainer[id] );
                 if( tmp.kids )
                     self.renderKids( tmp.kids, model, kidsContainer[id], kidsContainer, parentObject );
@@ -268,80 +268,109 @@ class KnockDroid{
         let self = this;
         return "auto_generated_" + (self.config.idCounter++);
     }
-    
-    getUi( uiKey, uiData, model ){
+
+    parseText( ui, model ){
         let self = this;
-        var ui = MUI["Create" + uiKey]( ...uiData.init );
+        let text = ui.text;
+        ui.obs.forEach(o=>{
+            text = text.split( '<'+o+'>' ).join( model[o]() );
+        });
+        return text;
+    }
+
+    getTextMethod( uiKey ){
+        switch( uiKey ){
+            case "AppBar":
+                return {
+                    set : "SetTitleText"
+                };
+            break;
+            default:
+                return {
+                    set : "SetText",
+                    get : "GetText"
+                }
+            break;
+        }
+    }
+}
+
+
+class UI{
+    constructor(uiKey, uiData, model){
+        let self = this;
+        self.ui = MUI["Create" + uiKey]( ...uiData.init );
         if( uiData.methods ){
             for( let m in uiData.methods ){
                 if( typeof uiData.methods[m] =="object" )
-                    ui[m]( ...uiData.methods[m] );
+                    self.ui[m]( ...uiData.methods[m] );
                 else
-                    ui[m]( uiData.methods[m] );
+                    self.ui[m]( uiData.methods[m] );
             }
         }
         if( uiData.bind ){
             let textMethod = self.getTextMethod(uiKey);
+            self.bind = {}
             for( let b in uiData.bind ){
                 switch( b ){
                     case "text":
-                        ui.text = uiData.bind.text;
-                        ui.obs = [];
-                        let obs = ui.text.matchAll( self.regex.obs );
+                        self.bind.text = {
+                            value : uiData.bind.text,
+                            obs : []
+                        };
+                        let obs = self.ui.text.matchAll( self.regex.obs );
                         for( let obsName of obs ){
-                            ui.obs.push( obsName[1] );
+                            self.bind.text.obs.push( obsName[1] );
                             if( model[obsName[1]] ){
                                 model[obsName[1]].subscribe( newVal=>{
-                                    ui[textMethod.set]( self.parseText( ui, model ) );
+                                    self.ui[textMethod.set]( self.parseText( self.bind.text, model ) );
                                 } );
                             }
                         }
-                        ui[textMethod.set]( self.parseText( ui, model ) );
+                        self.ui[textMethod.set]( self.parseText( self.bind.text, model ) );
                     break;
                     case "computed":
-                        let computed = uiData.bind.computed;
-                        model[computed].subscribe( function( newVal ){
-                            ui[textMethod.set]( newVal );
+                        self.bind.computed = uiData.bind.computed;
+                        model[self.bind.computed].subscribe( function( newVal ){
+                            self.ui[textMethod.set]( newVal );
                         } );
-                        ui[textMethod.set]( model[computed]() );
+                        self.ui[textMethod.set]( model[self.bind.computed]() );
                     break;
                     case "value":
                         let val = uiData.bind.value;
                         model[val.obs].subscribe( newVal=>{
-                            if(ui[textMethod.get]()!=model[val.obs]())
-                                ui[textMethod.set]( model[val.obs]() );
+                            if(self.ui[textMethod.get]()!=model[val.obs]())
+                            self.ui[textMethod.set]( model[val.obs]() );
                         } );
-                        ui[textMethod.set]( model[val.obs]() );
+                        self.ui[textMethod.set]( model[val.obs]() );
                         //Two way
-                        ui[val.ev]( ()=>{
-                            model[val.obs](ui[textMethod.get]());
+                        self.ui[val.ev]( ()=>{
+                            model[val.obs](self.ui[textMethod.get]());
                         } );
                     break;
                     case "event":
                         for( let e in uiData.bind.event ){
                             if( typeof uiData.bind.event[e]=="string" )
-                                ui[e]( model[uiData.bind.event[e]] );
+                                self.ui[e]( model[uiData.bind.event[e]] );
                             else if( typeof uiData.bind.event[e]=="function" )
-                                ui[e]( uiData.bind.event[e] );
+                                self.ui[e]( uiData.bind.event[e] );
                         }
                     break;
                     case "href":
                         let ev = uiData.bind.href.ev;
                         let path = uiData.bind.href.path;
-                        ui.path = path
-                        ui[ev]( function(){
+                        self.ui.path = path
+                        self.ui[ev]( function(){
                             kd.navigate( this.path );
                         } );
                     break;
                 }
             }
         }
-        return ui;
     }
 
     parseText( ui, model ){
-        let self = this;
-        let text = ui.text;
+        let text = ui.value;
         ui.obs.forEach(o=>{
             text = text.split( '<'+o+'>' ).join( model[o]() );
         });
