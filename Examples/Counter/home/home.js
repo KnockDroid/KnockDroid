@@ -5,6 +5,9 @@ define( [], function(){
      */
     var Model = function(){
         let self = this;
+        self.contact = function(){
+            kd.navigate( "contact" );
+        }
     }
     /**
      * View Object
@@ -14,7 +17,12 @@ define( [], function(){
             init : [ "Linear", "FillXY,Vertical" ],
             kids : {
                 "AppBar" : {
-                    init : ["Home Page", "", "phone"]
+                    init : ["Home Page", "", "phone"],
+                    bind : {
+                        event : {
+                            "SetOnControlTouch" : "contact"
+                        }
+                    }
                 },
                 "ButtonElegant" : {
                     init : ["Go to Contact", 0.38],
@@ -40,7 +48,6 @@ define( [], function(){
         View : View,
         /* Model should be an object and not a Class */
         Model : new Model(),
-        /* Router property defines all the routes and its ViewModel file name
         Routes : [
             {
                 default : true,
@@ -51,6 +58,6 @@ define( [], function(){
                 path : "contact",
                 file : "pages/contact"
             }
-        ] */
+        ]
     }
 } );

@@ -180,18 +180,19 @@ class KnockDroid{
             hash = hashArray[pos],
             tree = self.routes.tree;
         if( tree[pos]==hash ){
-            id = routes[hash].id;
+            let id = routes[hash].id;
             routes = routes[hash].kids;
             data = data[id].kids;
-            parent = data[id].view;
+            parent = data[id].view.ui;
             self.load( hashArray, pos+1, routes, data, parent );
         }else{
             if( !routes[hash] ){
                 self.error(404, "Route '" + hash + "' not found");
+                self.routes.tree.splice( pos );
             }else{
                 if( tree[pos] ){
                     let activeID = routes[tree[pos]].id;
-                    data[activeID].view.Animate( "FadeOut" );
+                    data[activeID].view.ui.Animate( "FadeOut" );
                 }
                 if( !routes[hash].id ){
                     require( 
@@ -214,7 +215,7 @@ class KnockDroid{
                     );
                 }else{
                     let currentID = routes[hash].id;
-                    data[currentID].view.Animate( "FadeIn" );
+                    data[currentID].view.ui.Animate( "FadeIn" );
                     self.routes.tree.splice( pos );
                     self.routes.tree.push( hash );
                 }
@@ -230,15 +231,15 @@ class KnockDroid{
         let self = this;
         data.model = vm.Model;
         let layout = vm.View.Layout;
-        data.view = app.CreateLayout( ...layout.init );
-        data.view.SetVisibility( "Hide" );
+        data.view = new kdUI( "Layout", layout, {} );
+        data.view.ui.SetVisibility( "Hide" );
         if( parent )
-            parent.AddChild( data.view );
+            parent.AddChild( data.view.ui );
         else{
-            app.AddLayout( data.view );
+            app.AddLayout( data.view.ui );
         }
-        self.renderKids( vm.View, data.model, data.view, data.kids, data );
-        data.view.Animate( "FadeIn" );
+        self.renderKids( vm.View.Layout.kids, data.model, data.view.ui, data.kids, data );
+        data.view.ui.Animate( "FadeIn" );
     }
     
     renderKids( kids, model, parent, kidsContainer, parentObject ){
@@ -247,13 +248,13 @@ class KnockDroid{
         let id;
         for( let k in kids ){
             if( k=="kidsView" ){
-                parentObject.kidsView = new UI( "Layout", kids[k], {} );
-                parent.AddChild( parentObject.kidsView );
+                parentObject.kidsView = new kdUI( "Layout", kids[k], {} );
+                parent.AddChild( parentObject.kidsView.ui );
             }else{
                 tmp = kids[k];
                 id = self.getID();
-                kidsContainer[id] = new UI( k, kids[k], model );
-                parent.AddChild( kidsContainer[id] );
+                kidsContainer[id] = new kdUI( k, kids[k], model );
+                parent.AddChild( kidsContainer[id].ui );
                 if( tmp.kids )
                     self.renderKids( tmp.kids, model, kidsContainer[id], kidsContainer, parentObject );
             }
@@ -296,7 +297,7 @@ class KnockDroid{
 }
 
 
-class UI{
+class kdUI{
     constructor(uiKey, uiData, model){
         let self = this;
         self.ui = MUI["Create" + uiKey]( ...uiData.init );
