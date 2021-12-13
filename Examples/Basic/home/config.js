@@ -6,7 +6,7 @@ define( [], function(){
     var Model = function(){
         let self = this;
         self.contact = function(){
-            kd.navigate( "contact" );
+            kd.navigateRoute( "contact" );
         }
     }
     /**
@@ -24,32 +24,28 @@ define( [], function(){
                         }
                     }
                 },
-                "ButtonElegant" : {
-                    init : ["Go to Contact", 0.38],
-                    methods : {
-                        "SetMargins" : [0.0, 0.02, 0.0, 0.0]
-                    },
-                    bind : {
-                        href : {
-                            ev : "SetOnTouch",
-                            path : "contact"
-                        }
-                    }
-                },
-                "kidsView" : {
+                "Container" : {
                     //RouterView is also a layout
-                    init : ["Linear", "FillXY,Vertical"]
+                    init : ["Absolute", "FillXY,Vertical"]
                 }
             }
         }
     };
     
     return {
-        View : View,
+        view : View,
         /* Model should be an object and not a Class */
-        Model : new Model(),
+        model : new Model(),
         routes : [
-            
+            {
+                default : true,
+                path : "about",
+                file : "pages/about"
+            },
+            {
+                path : "contact",
+                file : "pages/contact"
+            }
         ]
     }
 } );

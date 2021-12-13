@@ -4,18 +4,10 @@ define( function(){
         self.title = ko.observable( "Contact Us" );
     }
     return {
-        View : {
+        view : {
             "Layout" : {
                 init : ["Linear", "FillXY,Vertical"],
                 kids : {
-                    "AppBar" : {
-                        init : ["Contact Us", "arrow_back"],
-                        bind : {
-                            event : {
-                                SetOnMenuTouch : function(){ kd.navigate("home") }
-                            }
-                        }
-                    },
                     "TextH3" : {
                         init : ["", 1, -1, "Monospace"],
                         bind : {
@@ -25,15 +17,15 @@ define( function(){
                     "ButtonElegant" : {
                         init : ["Go Back", 0.35],
                         bind : {
-                            href : {
+                            route : {
                                 ev : "SetOnTouch",
-                                path : "home"
+                                path : "about"
                             }
                         }
                     }
                 }
             }
         },
-        Model : new Model()
+        model : new Model()
     }
 } );

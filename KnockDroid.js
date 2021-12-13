@@ -31,6 +31,7 @@ class KnockDroid{
 
         self.defaults = {
             module : null,
+            route : null,
             regex : {
                 obs : /<(.*?)>/g
             }
@@ -50,10 +51,11 @@ class KnockDroid{
                             let file = self.config.file.split("/");
                             file.pop();
                             self.modules[m.key] = {
-                                file : file.join("/") + "/" + m.file,
+                                file : file.join("/") + "/" + m.file + ".js",
+                                view : null,
                                 container : null,
                                 model : null,
-                                route : null
+                                routes : {}
                             }
                             if( m.default )
                                 self.defaults.module = m.key
@@ -67,9 +69,6 @@ class KnockDroid{
 
     start(){
         let self = this;
-        window.onhashchange = function(){
-            self.parse();
-        }
         let moduleKey = self.getUrlParam().module;
         if( !moduleKey ){
             self.navigateModule( self.defaults.module );
@@ -83,91 +82,96 @@ class KnockDroid{
         window.location = "?module=" + key
     }
 
+    navigateRoute( path ){
+        let self = this;
+        path = path ? path : self.routes.default;
+        window.location = "#/" + path
+    }
+
     loadModule( key ){
+        let self = this;
         if( !self.modules[key] )
             app.ShowPopup( "404 Module not found" );
         else{
             let file = self.modules[key].file;
             require(
                 [file],
-                vm=>{
+                (vm)=>{
                     vm.model.$kids = {};
-                    
+                    self.modules[key].model = vm.model;
+                    self.render( self.modules[key], vm );
+                    if( vm.routes ){
+                        vm.routes.forEach(r=>{
+                            let rFile = self.modules[key].file.split( "/" );
+                            rFile.pop();
+                            self.modules[key].routes[r.path] = {
+                                file : rFile.join('/') + '/' + r.file + '.js',
+                                view : null,
+                                model : null
+                            }
+                            if( r.default )
+                                self.defaults.route = r.path;
+                        });
+                        self.activateRoute( self.defaults.route );
+                    }
                 }
             );
         }
     }
-    
-    navigate( path ){
+
+    activateRoute( path ){
         let self = this;
-        path = path ? path : self.routes.default;
-        window.location = "#/" + path
+        window.onhashchange = function(){
+            self.parse();
+        }
+        path = path ? path : self.defaults.route;
+        window.location = "#/" + path;
     }
 
     parse(){
         let self = this;
         let hash = window.location.hash.replace("#/", "");
-        let i = 0;
-        let hashArray = hash.split("/");
-        self.load( hashArray, 0, self.routes.kids, self.data );
+        self.loadRoute( hash );
     }
 
-    load( hashArray, pos, routes, data, parent ){
-        let self = this,
-            hash = hashArray[pos],
-            tree = self.routes.tree;
-        if( tree[pos]==hash ){
-            let id = routes[hash].id;
-            routes = routes[hash].kids;
-            data = data[id].kids;
-            parent = data[id].view.ui;
-            self.load( hashArray, pos+1, routes, data, parent );
-        }else{
-            if( !routes[hash] ){
-                self.error(404, "Route '" + hash + "' not found");
-                self.routes.tree.splice( pos );
+    loadRoute( hash ){
+        let self = this;
+        let mod = self.modules[self.active.module];
+        if( !mod.routes[hash] )
+            return app.ShowPopup( "404 route not found" );
+        else{
+            let route = mod.routes[hash];
+            if( !route.view ){
+                app.ShowProgress("loading...");
+                require(
+                    [route.file],
+                    (vm)=>{
+                        app.HideProgress("loading...");
+                        self.render( route, vm, mod.container.ui );
+                        self.showRoute( hash );
+                    }
+                );
             }else{
-                if( tree[pos] ){
-                    let activeID = routes[tree[pos]].id;
-                    data[activeID].view.ui.Animate( "FadeOut" );
-                }
-                if( !routes[hash].id ){
-                    require( 
-                        [ routes[hash].file ],
-                        vm=>{
-                            routes[hash].id = vm.id ? vm.id : self.getID();
-                            if( vm.routes) self.parseRoutes( vm.routes, routes[hash] );
-                            data[routes[hash].id] = {
-                                ui : {},
-                                view : {},
-                                model : {},
-                                kidsView : {},
-                                default : "",
-                                kids : {}
-                            }
-                            self.render( data[routes[hash].id], vm, parent );
-                            self.routes.tree.splice( pos );
-                            self.routes.tree.push( hash );
-                        }
-                    );
-                }else{
-                    let currentID = routes[hash].id;
-                    data[currentID].view.ui.Animate( "FadeIn" );
-                    self.routes.tree.splice( pos );
-                    self.routes.tree.push( hash );
-                }
-                //data[tree[pos]].view.Animate( "FadeOut" );
-                //data[id].view.Animate( "FadeIn" );
-                //self.routes.tree.splice( pos );
-                //self.routes.tree.push( hash );
+                self.showRoute( hash );
             }
         }
     }
 
+    showRoute( hash ){
+        let self = this;
+        let mod = self.modules[self.active.module]
+        if( mod.routes[self.active.route] ){
+            mod.routes[self.active.route].view.ui.Animate( "FadeOut" );
+        }
+        mod.routes[hash].view.ui.Animate( "FadeIn" );
+        self.active.route = hash;
+    }
+
     render( data, vm, parent ){
         let self = this;
-        data.model = vm.Model;
-        let layout = vm.View.Layout;
+        data.model = vm.model;
+        data.model.$kids = {};
+        let layout = vm.view.Layout;
         data.view = new kdUI( "Layout", layout, {} );
         data.view.ui.SetVisibility( "Hide" );
         if( parent )
@@ -175,7 +179,7 @@ class KnockDroid{
         else{
             app.AddLayout( data.view.ui );
         }
-        self.renderKids( vm.View.Layout.kids, data.model, data.view.ui, data.kids, data );
+        self.renderKids( vm.view.Layout.kids, data.model, data.view.ui, data.model.$kids, data );
         data.view.ui.Animate( "FadeIn" );
     }
     
@@ -184,16 +188,16 @@ class KnockDroid{
         let tmp;
         let id;
         for( let k in kids ){
-            if( k=="kidsView" ){
-                parentObject.kidsView = new kdUI( "Layout", kids[k], {} );
-                parent.AddChild( parentObject.kidsView.ui );
+            if( k=="Container" ){
+                parentObject.container = new kdUI( "Layout", kids[k], {} );
+                parent.AddChild( parentObject.container.ui );
             }else{
                 tmp = kids[k];
                 id = self.getID();
                 kidsContainer[id] = new kdUI( k, kids[k], model );
                 parent.AddChild( kidsContainer[id].ui );
                 if( tmp.kids )
-                    self.renderKids( tmp.kids, model, kidsContainer[id], kidsContainer, parentObject );
+                    self.renderKids( tmp.kids, model, kidsContainer[id].ui, kidsContainer, parentObject );
             }
         }
     }
@@ -306,10 +310,14 @@ class kdUI{
                     break;
                     case "computed":
                         self.bind.computed = uiData.bind.computed;
-                        model[self.bind.computed].subscribe( function( newVal ){
-                            self.ui[textMethod.set]( newVal );
-                        } );
-                        self.ui[textMethod.set]( model[self.bind.computed]() );
+                        if( !model[self.bind.computed] ){
+                            app.ShowPopup( "Model does not contains observable : " + self.bind.computed );
+                        }else{
+                            model[self.bind.computed].subscribe( function( newVal ){
+                                self.ui[textMethod.set]( newVal );
+                            } );
+                            self.ui[textMethod.set]( model[self.bind.computed]() );
+                        }
                     break;
                     case "value":
                         let val = uiData.bind.value;
@@ -331,12 +339,20 @@ class kdUI{
                                 self.ui[e]( uiData.bind.event[e] );
                         }
                     break;
-                    case "href":
-                        let ev = uiData.bind.href.ev;
-                        let path = uiData.bind.href.path;
+                    case "route":
+                        let ev = uiData.bind.route.ev;
+                        let path = uiData.bind.route.path;
                         self.ui.path = path
                         self.ui[ev]( function(){
-                            kd.navigate( this.path );
+                            kd.navigateRoute( this.path );
+                        } );
+                    break;
+                    case "module":
+                        let moduleEv = uiData.bind.module.ev;
+                        let modulePath = uiData.bind.module.path;
+                        self.ui.path = modulePath
+                        self.ui[moduleEv]( function(){
+                            kd.navigateModule( this.path );
                         } );
                     break;
                 }
