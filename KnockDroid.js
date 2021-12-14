@@ -4,7 +4,8 @@ class KnockDroid{
 
         self.config = {
             file : "",
-            host : ""
+            host : "",
+            idCounter : 0
         }
 
         self.modules = {
@@ -187,19 +188,18 @@ class KnockDroid{
         let self = this;
         let tmp;
         let id;
-        for( let k in kids ){
-            if( k=="Container" ){
-                parentObject.container = new kdUI( "Layout", kids[k], {} );
+        kids.forEach(k=>{
+            if( k.ui=="Container" ){
+                parentObject.container = new kdUI( "Layout", k, {} );
                 parent.AddChild( parentObject.container.ui );
             }else{
-                tmp = kids[k];
                 id = self.getID();
-                kidsContainer[id] = new kdUI( k, kids[k], model );
+                kidsContainer[id] = new kdUI( k.ui, k, model );
                 parent.AddChild( kidsContainer[id].ui );
-                if( tmp.kids )
-                    self.renderKids( tmp.kids, model, kidsContainer[id].ui, kidsContainer, parentObject );
+                if( k.kids )
+                    self.renderKids( kids, model, kidsContainer[id].ui, kidsContainer, parentObject );
             }
-        }
+        });
     }
 
     error( code, msg ){
@@ -278,7 +278,10 @@ class KnockDroid{
 class kdUI{
     constructor(uiKey, uiData, model){
         let self = this;
-        self.ui = MUI["Create" + uiKey]( ...uiData.init );
+        if( uiData.init )
+            self.ui = MUI["Create" + uiKey]( ...uiData.init );
+        else
+            self.ui = MUI["Create" + uiKey]();
         if( uiData.methods ){
             for( let m in uiData.methods ){
                 if( typeof uiData.methods[m] =="object" )
