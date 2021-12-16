@@ -13,7 +13,7 @@
     <script>
         cfg.MUI, cfg.Light
         
-        host : "http://192.168.140.149:8080/"
+        host = "http://192.168.140.149:8080/"
         
         function OnStart()
         {
@@ -22,7 +22,7 @@
     
             kd.configure(
                 "modules",
-                config.host
+                host
             ).then( function(){
                 kd.start();
             });

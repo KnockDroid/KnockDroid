@@ -197,7 +197,7 @@ class KnockDroid{
                 kidsContainer[id] = new kdUI( k.ui, k, model );
                 parent.AddChild( kidsContainer[id].ui );
                 if( k.kids )
-                    self.renderKids( kids, model, kidsContainer[id].ui, kidsContainer, parentObject );
+                    self.renderKids( k.kids, model, kidsContainer[id].ui, kidsContainer, parentObject );
             }
         });
     }

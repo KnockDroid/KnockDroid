@@ -19,14 +19,30 @@ define( function(){
                         }
                     },
                     {
-                        ui : "ButtonElegant",
-                        init : ["Contact Us", 0.35],
-                        bind : {
-                            route : {
-                                ev : "SetOnTouch",
-                                path : "contact"
+                        ui : "Layout",
+                        init : ["Linear", "FillX,Horizontal,Left"],
+                        kids : [
+                            {
+                                ui : "ButtonElegant",
+                                init : ["Contact Us", 0.35],
+                                bind : {
+                                    route : {
+                                        ev : "SetOnTouch",
+                                        path : "contact"
+                                    }
+                                }
+                            },
+                            {
+                                ui : "ButtonRaised",
+                                init : ["Explore", 0.35],
+                                bind : {
+                                    route : {
+                                        ev : "SetOnTouch",
+                                        path : "contact"
+                                    }
+                                }
                             }
-                        }
+                        ]
                     },
                     {
                         ui :  "Divider",
