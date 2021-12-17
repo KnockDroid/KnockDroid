@@ -31,13 +31,13 @@
         
         function OnBack(){
             if( kd.defaults.module==kd.active.module || kd.defaults.route==kd.active.route ){
-                return history.back();
-            }else{
                 var yesNo = app.CreateYesNoDialog( "Exit App?" );
                 yesNo.SetOnTouch( result=>{
                     if( result=="Yes" ) app.Exit()
                 });
                 yesNo.Show();
+            }else{
+                return history.back();
             }
         }
     </script>
