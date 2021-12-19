@@ -4,6 +4,10 @@ define( function(){
             default : true,
             key : "home",
             file : "home/config"
+        },
+        {
+            key : "app",
+            file : "app/config"
         }
     ]
 } );

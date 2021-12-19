@@ -138,16 +138,19 @@ class KnockDroid{
     loadRoute( hash ){
         let self = this;
         let mod = self.modules[self.active.module];
+        if( mod.routes[self.active.route] ){
+            mod.routes[self.active.route].view.ui.Animate( "FadeOut" );
+            mod.loader.lay.Animate("FadeIn")
+        }
         if( !mod.routes[hash] )
             return app.ShowPopup( "404 route not found" );
         else{
             let route = mod.routes[hash];
             if( !route.view ){
-                app.ShowProgress("loading...");
                 require(
                     [route.file],
                     (vm)=>{
-                        app.HideProgress("loading...");
+                        mod.loader.lay.Animate("FadeOut")
                         self.render( route, vm, mod.container.ui );
                         self.showRoute( hash );
                     }
@@ -160,10 +163,7 @@ class KnockDroid{
 
     showRoute( hash ){
         let self = this;
-        let mod = self.modules[self.active.module]
-        if( mod.routes[self.active.route] ){
-            mod.routes[self.active.route].view.ui.Animate( "FadeOut" );
-        }
+        let mod = self.modules[self.active.module];
         mod.routes[hash].view.ui.Animate( "FadeIn" );
         self.active.route = hash;
     }
@@ -191,9 +191,17 @@ class KnockDroid{
         kids.forEach(k=>{
             if( k.ui=="Container" ){
                 parentObject.container = new kdUI( "Layout", k, {} );
+                    parentObject.loader = {
+                        lay : app.CreateLayout( "Linear", "FillXY,VCenter" ),
+                        img : app.CreateImage( 'Gif/kd_loader.gif', -1, .05),
+                        text : app.CreateText( 'loading', -1, -1, "Monospace")
+                    }
+                    parentObject.loader.lay.AddChild( parentObject.loader.img );
+                    parentObject.loader.lay.AddChild( parentObject.loader.text );
+                    parentObject.container.ui.AddChild( parentObject.loader.lay );
                 parent.AddChild( parentObject.container.ui );
             }else{
-                id = self.getID();
+                id = k.id ? k.id : self.getID();
                 kidsContainer[id] = new kdUI( k.ui, k, model );
                 parent.AddChild( kidsContainer[id].ui );
                 if( k.kids )
@@ -337,9 +345,13 @@ class kdUI{
                     case "event":
                         for( let e in uiData.bind.event ){
                             if( typeof uiData.bind.event[e]=="string" )
-                                self.ui[e]( model[uiData.bind.event[e]] );
+                                self.ui[e]( (...par)=>{
+                                    model[uiData.bind.event[e]]( self.ui, model, ...par );
+                                } );
                             else if( typeof uiData.bind.event[e]=="function" )
-                                self.ui[e]( uiData.bind.event[e] );
+                                self.ui[e]( (...par)=>{
+                                    uiData.bind.event[e]( self.ui, model, ...par );
+                                } );
                         }
                     break;
                     case "route":
