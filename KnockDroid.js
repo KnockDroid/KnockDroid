@@ -101,6 +101,8 @@ class KnockDroid{
                     vm.model.$kids = {};
                     self.modules[key].model = vm.model;
                     self.render( self.modules[key], vm );
+                    if( vm.drawer  )
+                        self.loadDrawer(vm.drawer, self.modules[key]);
                     if( vm.routes ){
                         vm.routes.forEach(r=>{
                             let rFile = self.modules[key].file.split( "/" );
@@ -168,6 +170,30 @@ class KnockDroid{
         self.active.route = hash;
     }
 
+    loadDrawer( drawer, mod ){
+        let self = this;
+        if( typeof drawer=="string"  ){
+            require(
+                [self.config.host + drawer + ".js"],
+                ( dr )=>{
+                    self.renderDrawer( dr, mod );
+                }
+            );
+        }else
+            self.renderDrawer( drawer, mod );
+    }
+    renderDrawer( dr, mod ){
+        let self = this;
+        mod.model.$drawer = {}
+        dr.side = dr.side ? dr.side : "Left";
+        dr.width = dr.width ? dr.width : 0.8;
+        mod.model.$drawer[dr.side] = new kdUI( "Layout", dr.view.Layout, mod.model );
+        mod.model.$drawer[dr.side].kids = {}
+        mod.model.$drawer[dr.side].width = dr.width
+        app.AddDrawer( mod.model.$drawer[dr.side].ui, dr.side, dr.width );
+        self.renderKids( dr.view.Layout.kids, mod.model, mod.model.$drawer[dr.side].ui, mod.model.$drawer[dr.side].kids, {} );
+    }
+
     render( data, vm, parent ){
         let self = this;
         data.model = vm.model;
@@ -201,6 +227,14 @@ class KnockDroid{
                     parentObject.container.ui.AddChild( parentObject.loader.lay );
                 parent.AddChild( parentObject.container.ui );
             }else{
+                if( typeof k.init=="function" )
+                    k.init = k.init( model, kidsContainer, parentObject );
+                if( k.methods ){
+                    for(let m in k.methods){
+                        if( typeof k.methods[m]=="function" )
+                            k.methods[m] = k.methods[m]( model, kidsContainer, parentObject );
+                    }
+                }
                 id = k.id ? k.id : self.getID();
                 kidsContainer[id] = new kdUI( k.ui, k, model );
                 parent.AddChild( kidsContainer[id].ui );
@@ -286,10 +320,11 @@ class KnockDroid{
 class kdUI{
     constructor(uiKey, uiData, model){
         let self = this;
-        if( uiData.init )
+        uiData.init = uiData.init ? uiData.init : [];
+        if( MUI["Create"+uiKey] )
             self.ui = MUI["Create" + uiKey]( ...uiData.init );
         else
-            self.ui = MUI["Create" + uiKey]();
+            self.ui = app["Create"+uiKey]( ...uiData.init );
         if( uiData.methods ){
             for( let m in uiData.methods ){
                 if( typeof uiData.methods[m] =="object" )
