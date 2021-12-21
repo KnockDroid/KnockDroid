@@ -3,7 +3,7 @@ define(function(){
         {
             default : true,
             key : "home",
-            file : "home"
+            file : "modules/home/home"
         }
     ]
 });

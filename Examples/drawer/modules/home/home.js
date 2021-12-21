@@ -27,7 +27,7 @@ define( ()=>{
                 ]
             }
         },
-        drawer : "drawer",
+        drawer : "common/drawer",
         model : {
             openDrawer : function(){
                 app.OpenDrawer( "Left" );
@@ -37,11 +37,11 @@ define( ()=>{
             {
                 default : true,
                 path : "dash",
-                file : "home_dash",
+                file : "pages/dash",
             },
             {
                 path : "about",
-                file : "home_about",
+                file : "pages/about",
             }
         ]
     }
